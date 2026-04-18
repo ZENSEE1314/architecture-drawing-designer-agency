@@ -4,6 +4,8 @@ import { getSubmission } from "@/lib/store";
 import SampleView from "@/components/SampleView";
 import AdminActions from "./actions";
 
+export const dynamic = "force-dynamic";
+
 type Props = { params: Promise<{ id: string }> };
 
 export default async function AdminDetailPage({ params }: Props) {

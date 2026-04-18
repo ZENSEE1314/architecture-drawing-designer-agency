@@ -74,13 +74,13 @@ export default function HomePage() {
           },
           {
             n: "02",
-            t: "Concept",
-            d: "Our studio returns three distinct directions — style, structure, facade, materials, sustainability.",
+            t: "Generate",
+            d: "Hit submit. In under a minute you get three distinct design directions — style, structure, facade, materials.",
           },
           {
             n: "03",
-            t: "Review",
-            d: "Agency reviews, refines, and finalizes your preferred direction for handoff to documentation.",
+            t: "Compare",
+            d: "See all three side by side with zoning, materials schedule, and structural strategy. Pick what fits.",
           },
         ].map((s) => (
           <div key={s.n}>

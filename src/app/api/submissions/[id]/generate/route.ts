@@ -6,12 +6,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export const maxDuration = 300;
 
-export async function POST(req: NextRequest, ctx: Ctx) {
-  const expected = process.env.ADMIN_TOKEN;
-  if (expected && req.headers.get("x-admin-token") !== expected) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function POST(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const sub = await getSubmission(id);
   if (!sub) return NextResponse.json({ error: "Not found" }, { status: 404 });

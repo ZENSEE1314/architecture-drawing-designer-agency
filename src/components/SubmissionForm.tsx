@@ -46,6 +46,7 @@ export default function SubmissionForm() {
   const [uploading, setUploading] = useState(false);
   const [floorPlanUrl, setFloorPlanUrl] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "saving" | "designing">("idle");
   const [error, setError] = useState<string>("");
 
   function toggle<T>(list: T[], value: T): T[] {
@@ -72,6 +73,7 @@ export default function SubmissionForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setPhase("saving");
     setError("");
     try {
       const body = {
@@ -100,11 +102,18 @@ export default function SubmissionForm() {
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error(await r.text());
-      const j = (await r.json()) as { id: string };
-      router.push(`/submit/thanks?id=${j.id}`);
+      const { id } = (await r.json()) as { id: string };
+
+      setPhase("designing");
+      const g = await fetch(`/api/submissions/${id}/generate`, { method: "POST" });
+      if (!g.ok) {
+        const msg = await g.text();
+        throw new Error(`Designer error: ${msg.slice(0, 300)}`);
+      }
+      router.push(`/results/${id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Submit failed");
-    } finally {
+      setPhase("idle");
       setSubmitting(false);
     }
   }
@@ -309,10 +318,16 @@ export default function SubmissionForm() {
           disabled={submitting}
           className="rounded-full bg-ink px-6 py-3 text-sm text-paper disabled:opacity-50"
         >
-          {submitting ? "Submitting…" : "Submit brief"}
+          {phase === "saving"
+            ? "Saving brief…"
+            : phase === "designing"
+              ? "Designing your proposals…"
+              : "Generate my 3 proposals"}
         </button>
         <p className="text-xs text-neutral-500">
-          Agency will review and return three proposals.
+          {phase === "designing"
+            ? "This takes up to a minute. Keep this tab open."
+            : "Three distinct design directions, ready on the next screen."}
         </p>
       </div>
     </form>

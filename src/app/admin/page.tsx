@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { listSubmissions } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_STYLES: Record<string, string> = {
   submitted: "bg-neutral-100 text-neutral-700",
   generating: "bg-amber-100 text-amber-900",
