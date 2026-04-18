@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import type { Sample } from "@/lib/types";
 
 const COST_TIER_LABEL: Record<Sample["costTier"], string> = {
@@ -7,6 +8,9 @@ const COST_TIER_LABEL: Record<Sample["costTier"], string> = {
 };
 
 export default function SampleView({ sample }: { sample: Sample }) {
+  const r = sample.renders;
+  const hasRenders = !!(r?.exteriorUrl || r?.interiorUrl || r?.axonometricUrl || r?.sketchUrl);
+
   return (
     <article className="border hairline">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b hairline p-5">
@@ -30,6 +34,17 @@ export default function SampleView({ sample }: { sample: Sample }) {
         <p className="max-w-3xl text-neutral-700">{sample.concept}</p>
       </section>
 
+      {hasRenders && (
+        <Section title="Renders">
+          <div className="grid gap-4 md:grid-cols-2">
+            {r?.exteriorUrl && <Figure src={r.exteriorUrl} caption="Exterior — photorealistic" />}
+            {r?.interiorUrl && <Figure src={r.interiorUrl} caption="Interior — hero shot" />}
+            {r?.axonometricUrl && <Figure src={r.axonometricUrl} caption="Axonometric — 3D massing" />}
+            {r?.sketchUrl && <Figure src={r.sketchUrl} caption="Sketch — concept" />}
+          </div>
+        </Section>
+      )}
+
       <Section title="Floor plans by level">
         <div className="grid gap-6 md:grid-cols-2">
           {sample.levels.map((lvl, i) => (
@@ -38,10 +53,18 @@ export default function SampleView({ sample }: { sample: Sample }) {
                 <h4 className="font-display text-lg">{lvl.levelName}</h4>
                 <span className="text-xs text-neutral-500">{lvl.dimensionsNote}</span>
               </div>
-              <div
-                className="svg-wrap border hairline bg-paper"
-                dangerouslySetInnerHTML={{ __html: lvl.svgFloorPlan }}
-              />
+              {lvl.floorPlanUrl ? (
+                <img
+                  src={lvl.floorPlanUrl}
+                  alt={`${lvl.levelName} floor plan`}
+                  className="block w-full border hairline bg-white"
+                />
+              ) : lvl.svgFloorPlan ? (
+                <div
+                  className="svg-wrap border hairline bg-paper"
+                  dangerouslySetInnerHTML={{ __html: lvl.svgFloorPlan }}
+                />
+              ) : null}
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                 <dt className="text-neutral-500">Zoning</dt>
                 <dd>{lvl.zoning}</dd>
@@ -53,12 +76,8 @@ export default function SampleView({ sample }: { sample: Sample }) {
         </div>
       </Section>
 
-      <Section title="Facade / elevation">
+      <Section title="Facade & materials">
         <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
-          <div
-            className="svg-wrap border hairline bg-paper"
-            dangerouslySetInnerHTML={{ __html: sample.facade.svgElevation }}
-          />
           <div className="space-y-3">
             <p className="text-sm text-neutral-700">{sample.facade.description}</p>
             <ul className="space-y-1 text-sm">
@@ -69,6 +88,12 @@ export default function SampleView({ sample }: { sample: Sample }) {
               ))}
             </ul>
           </div>
+          {sample.facade.svgElevation && !r?.exteriorUrl && (
+            <div
+              className="svg-wrap border hairline bg-paper"
+              dangerouslySetInnerHTML={{ __html: sample.facade.svgElevation }}
+            />
+          )}
         </div>
       </Section>
 
@@ -133,5 +158,19 @@ function Row({ label, value }: { label: string; value: string }) {
       <dt className="text-neutral-500">{label}</dt>
       <dd>{value}</dd>
     </div>
+  );
+}
+
+function Figure({ src, caption }: { src: string; caption: string }) {
+  return (
+    <figure className="space-y-1">
+      <img
+        src={src}
+        alt={caption}
+        className="block w-full border hairline bg-white"
+        loading="lazy"
+      />
+      <figcaption className="text-xs text-neutral-500">{caption}</figcaption>
+    </figure>
   );
 }

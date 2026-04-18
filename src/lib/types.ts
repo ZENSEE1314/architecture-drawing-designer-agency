@@ -79,7 +79,10 @@ export type LevelDesign = {
   zoning: string;
   circulation: string;
   dimensionsNote: string;
-  svgFloorPlan: string;
+  /** Optional legacy schematic SVG (fallback when image gen unavailable). */
+  svgFloorPlan?: string;
+  /** URL to the Gemini-generated CAD-style 2D floor plan image. */
+  floorPlanUrl?: string;
 };
 
 export type Sample = {
@@ -91,7 +94,14 @@ export type Sample = {
   facade: {
     description: string;
     materialCallouts: string[];
-    svgElevation: string;
+    svgElevation?: string;
+  };
+  /** Gemini-generated images. All optional — absent when GEMINI_API_KEY is unset. */
+  renders?: {
+    exteriorUrl?: string;
+    interiorUrl?: string;
+    axonometricUrl?: string;
+    sketchUrl?: string;
   };
   materials: MaterialRow[];
   structure: {
