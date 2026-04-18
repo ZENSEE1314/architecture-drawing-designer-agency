@@ -24,3 +24,50 @@ body {
   height: auto;
   display: block;
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .print-samples > article {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-before: page;
+    page-break-before: always;
+    border: 1px solid #000 !important;
+  }
+
+  .print-samples > article:first-of-type {
+    break-before: auto;
+    page-break-before: auto;
+  }
+
+  .print-samples .svg-wrap {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

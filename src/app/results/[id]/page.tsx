@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSubmission } from "@/lib/store";
 import SampleView from "@/components/SampleView";
+import DownloadBar from "./DownloadBar";
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +36,15 @@ export default async function ResultsPage({ params }: Props) {
       </header>
 
       {ready ? (
-        <section className="space-y-6">
-          <h2 className="font-display text-3xl">Your three proposals</h2>
-          {sub.samples!.map((s) => (
-            <SampleView key={s.id} sample={s} />
-          ))}
-        </section>
+        <>
+          <DownloadBar submissionId={sub.id} title={sub.project.siteAddress} />
+          <section className="space-y-6 print-samples">
+            <h2 className="font-display text-3xl">Your three proposals</h2>
+            {sub.samples!.map((s) => (
+              <SampleView key={s.id} sample={s} />
+            ))}
+          </section>
+        </>
       ) : (
         <section className="border hairline p-10 text-center">
           <p className="font-display text-2xl">Still generating…</p>
