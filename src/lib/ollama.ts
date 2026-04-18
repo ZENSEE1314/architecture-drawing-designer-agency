@@ -90,8 +90,8 @@ export async function generateSamples(sub: Submission): Promise<Sample[]> {
   const json = (await res.json()) as { message?: { content?: string }; response?: string };
   const content = json.message?.content ?? json.response ?? "";
   const parsed = extractJson(content);
-  const rawSamples = Array.isArray(parsed?.samples) ? parsed.samples : [];
-  return rawSamples.slice(0, 3).map((s: SchemaSample, i: number) => normalize(s, i));
+  const rawSamples: unknown[] = Array.isArray(parsed?.samples) ? parsed.samples : [];
+  return rawSamples.slice(0, 3).map((s, i) => normalize(s as SchemaSample, i));
 }
 
 function extractJson(text: string): { samples?: unknown[] } {
