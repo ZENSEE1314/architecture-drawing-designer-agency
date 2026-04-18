@@ -1,6 +1,27 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
 export default function DownloadBar({ submissionId, title }: { submissionId: string; title: string }) {
+  const router = useRouter();
+  const [regenerating, setRegenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  async function regenerate() {
+    setRegenerating(true);
+    setError("");
+    try {
+      const r = await fetch(`/api/submissions/${submissionId}/generate`, { method: "POST" });
+      if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Regenerate failed");
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   async function downloadJson() {
     const res = await fetch(`/api/submissions/${submissionId}`);
     if (!res.ok) return;
@@ -36,6 +57,14 @@ export default function DownloadBar({ submissionId, title }: { submissionId: str
       >
         Download JSON
       </button>
+      <button
+        onClick={regenerate}
+        disabled={regenerating}
+        className="rounded-full border hairline px-5 py-2 text-sm hover:bg-neutral-100 disabled:opacity-50"
+      >
+        {regenerating ? "Regenerating…" : "Regenerate"}
+      </button>
+      {error && <span className="basis-full text-xs text-red-600">{error}</span>}
     </div>
   );
 }
