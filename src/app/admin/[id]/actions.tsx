@@ -68,10 +68,14 @@ export default function AdminActions({
         />
         <button
           onClick={generate}
-          disabled={busy || status === "generating"}
+          disabled={busy}
           className="rounded-full bg-ink px-5 py-2 text-sm text-paper disabled:opacity-50"
         >
-          {status === "generated" ? "Regenerate 3 proposals" : "Generate 3 proposals"}
+          {busy
+            ? "Generating…"
+            : status === "generated"
+              ? "Regenerate 3 proposals"
+              : "Generate 3 proposals"}
         </button>
         {status === "generated" && (
           <button
