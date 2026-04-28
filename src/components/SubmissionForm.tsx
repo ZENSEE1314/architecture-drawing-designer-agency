@@ -11,6 +11,7 @@ import {
   type LevelBrief,
   type Style,
 } from "@/lib/types";
+import { rememberBrief } from "./RecentBriefs";
 
 type FormState = {
   clientName: string;
@@ -103,6 +104,12 @@ export default function SubmissionForm() {
       });
       if (!r.ok) throw new Error(await r.text());
       const { id } = (await r.json()) as { id: string };
+
+      rememberBrief({
+        id,
+        title: state.siteAddress || "Untitled brief",
+        createdAt: new Date().toISOString(),
+      });
 
       setPhase("designing");
       const g = await fetch(`/api/submissions/${id}/generate`, { method: "POST" });

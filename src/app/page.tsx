@@ -1,4 +1,5 @@
 import Link from "next/link";
+import RecentBriefs from "@/components/RecentBriefs";
 
 export default function HomePage() {
   return (
@@ -13,10 +14,10 @@ export default function HomePage() {
             Receive three proposals.
           </h1>
           <p className="mt-6 max-w-xl text-neutral-600">
-            Atelier is a concept-stage architecture studio for mixed-use commercial
-            projects. Give us the site, the plan, and the business per level — we
-            return three distinct design directions with facade, materials, and
-            structural strategy.
+            Describe your site, your floor plan, and the business for each level.
+            In about a minute you get three distinct architectural directions —
+            renders, sketches, CAD-style floor plans, materials, and structural
+            strategy. Yours to download as PDF.
           </p>
           <div className="mt-8 flex gap-3">
             <Link
@@ -25,13 +26,8 @@ export default function HomePage() {
             >
               Start a brief
             </Link>
-            <Link
-              href="/admin"
-              className="rounded-full border hairline px-6 py-3 text-sm hover:bg-neutral-100"
-            >
-              Agency dashboard
-            </Link>
           </div>
+          <RecentBriefs className="mt-8" />
         </div>
         <div className="aspect-[4/3] w-full border hairline p-6">
           <svg viewBox="0 0 400 300" className="h-full w-full">

@@ -23,9 +23,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/submit" className="hover:underline">
                 Start a brief
               </Link>
-              <Link href="/admin" className="hover:underline">
-                Admin
-              </Link>
             </nav>
           </div>
         </header>
