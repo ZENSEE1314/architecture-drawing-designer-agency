@@ -79,8 +79,31 @@ export async function generateImage(req: ImageRequest): Promise<ImageResult> {
   }
 }
 
+// Rate-limit pacing for Google AI Studio free tier (~10 RPM).
+// We space the START of each call by GAP_MS but let the actual HTTP requests
+// run concurrently — so the in-flight count caps naturally at GAP_MS / call_duration.
+const MAX_RPM = Number(process.env.GEMINI_MAX_RPM) || 8;
+const GAP_MS = Math.ceil(60_000 / MAX_RPM);
+
+let lastStart = 0;
+let pacingTail: Promise<void> = Promise.resolve();
+
+function paceStart(): Promise<void> {
+  pacingTail = pacingTail.then(async () => {
+    const wait = Math.max(0, lastStart + GAP_MS - Date.now());
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastStart = Date.now();
+  });
+  return pacingTail;
+}
+
 export async function generateImagesParallel(
   requests: ImageRequest[],
 ): Promise<ImageResult[]> {
-  return Promise.all(requests.map(generateImage));
+  return Promise.all(
+    requests.map(async (r) => {
+      await paceStart();
+      return generateImage(r);
+    }),
+  );
 }
