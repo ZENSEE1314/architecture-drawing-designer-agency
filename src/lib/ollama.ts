@@ -1,4 +1,4 @@
-import type { Sample, Style, Submission } from "./types";
+import type { LevelDesign, Sample, Style, Submission } from "./types";
 import { fallbackSvg } from "./svg";
 import {
   generateImagesParallel,
@@ -26,14 +26,8 @@ Sample:
   "title": string,
   "concept": string,
   "style": "modern-minimalist" | "industrial-loft" | "biophilic-organic" | "contemporary-tropical",
-  "levels": [{ "levelName": string, "zoning": string, "circulation": string, "dimensionsNote": string, "floorPlanPrompt": string }],
+  "levels": [{ "levelName": string, "zoning": string, "circulation": string, "dimensionsNote": string }],
   "facade": { "description": string, "materialCallouts": string[] },
-  "imagePrompts": {
-    "exterior": string,
-    "interior": string,
-    "axonometric": string,
-    "sketch": string
-  },
   "materials": [{ "zone": string, "walls": string, "floor": string, "ceiling": string, "joinery": string }],
   "structure": { "system": string, "grid": string, "spans": string, "coreStrategy": string, "loadStrategy": string },
   "sustainability": string,
@@ -43,14 +37,8 @@ Sample:
 
 Rules:
 - Produce EXACTLY 3 samples. Each sample must use a different style AND a different costTier.
-- Image prompts must be detailed (60-120 words each), specifying style, materials, lighting, camera angle, time of day.
-  - floorPlanPrompt: "2D architectural floor plan, top-down orthographic view, [room layout], dimensioned walls with double lines, door swings as quarter arcs, windows as parallel lines, furniture icons, grid paper background, black ink on white, professional CAD drawing style, no perspective, no color" — fill in zoning.
-  - exterior: photorealistic architectural render of the facade, specify materials + style + sky + context
-  - interior: photorealistic interior hero shot of the primary zone, specify materials + lighting + furniture + mood
-  - axonometric: isometric axonometric cutaway 3D view of the building showing all levels, clean line drawing with light material shading, white background
-  - sketch: hand-drawn architectural sketch of the facade in ink and light watercolor wash, competition-board style, loose confident linework
-- Zoning text must match what the floorPlanPrompt describes.
-- Material callouts must be specific (e.g. "fluted precast concrete panels, 1200mm module" not "concrete").`;
+- Material callouts must be specific (e.g. "fluted precast concrete panels, 1200mm module" not "concrete").
+- Zoning text must list rooms with relative positions (e.g. "Game House (Left), KTV Hall 1 (Center), KTV Hall 2 (Right)").`;
 
 type LlmSchemaSample = {
   title?: string;
@@ -61,20 +49,24 @@ type LlmSchemaSample = {
     zoning?: string;
     circulation?: string;
     dimensionsNote?: string;
-    floorPlanPrompt?: string;
   }[];
   facade?: { description?: string; materialCallouts?: string[] };
-  imagePrompts?: {
-    exterior?: string;
-    interior?: string;
-    axonometric?: string;
-    sketch?: string;
-  };
   materials?: Sample["materials"];
   structure?: Sample["structure"];
   sustainability?: string;
   estimatedBuildTime?: string;
   costTier?: Sample["costTier"];
+};
+
+const STYLE_HINTS: Record<Style, string> = {
+  "modern-minimalist":
+    "modern minimalist style, clean lines, glass and concrete, muted palette of warm white and charcoal, large openings, soft daylight",
+  "industrial-loft":
+    "industrial loft style, exposed steel structure, raw concrete, exposed brick, black metal mullions, warehouse character, dramatic lighting",
+  "biophilic-organic":
+    "biophilic organic style, integrated greenery, timber slats, natural stone, curved organic forms, abundant daylight, plants spilling over balconies",
+  "contemporary-tropical":
+    "contemporary tropical style, deep overhanging eaves, vertical timber louvers, white render walls, lush landscaping, dappled tropical sunlight",
 };
 
 function buildUserPrompt(sub: Submission): string {
@@ -93,7 +85,6 @@ function buildUserPrompt(sub: Submission): string {
     `Preferences:`,
     `  Styles allowed: ${sub.preferences.styles.join(", ") || "any"}`,
     `  Constraints: ${sub.preferences.constraints.join(", ") || "none"}`,
-    `  Deliverables required: ${sub.preferences.deliverables.join(", ")}`,
     `  Notes: ${sub.preferences.notes || "—"}`,
     ``,
     `Return the JSON object now.`,
@@ -131,50 +122,93 @@ export async function generateSamples(sub: Submission): Promise<Sample[]> {
   const rawSamples: unknown[] = Array.isArray(parsed?.samples) ? parsed.samples : [];
   const normalized = rawSamples.slice(0, 3).map((s, i) => normalize(s as LlmSchemaSample, i));
 
-  // Fire image generation across all samples in parallel.
-  if (geminiAvailable()) {
-    const imageReqs: ImageRequest[] = [];
-    rawSamples.slice(0, 3).forEach((rawAny, sampleIdx) => {
-      const raw = rawAny as LlmSchemaSample;
-      const sampleId = `sample-${sampleIdx + 1}`;
-      const p = raw.imagePrompts;
-      if (p?.exterior) imageReqs.push({ submissionId: sub.id, sampleId, role: "exterior", prompt: p.exterior });
-      if (p?.interior) imageReqs.push({ submissionId: sub.id, sampleId, role: "interior", prompt: p.interior });
-      if (p?.axonometric) imageReqs.push({ submissionId: sub.id, sampleId, role: "axonometric", prompt: p.axonometric });
-      if (p?.sketch) imageReqs.push({ submissionId: sub.id, sampleId, role: "sketch", prompt: p.sketch });
-      (raw.levels ?? []).forEach((l, levelIdx) => {
-        if (l.floorPlanPrompt) {
-          imageReqs.push({
-            submissionId: sub.id,
-            sampleId,
-            role: "level",
-            index: levelIdx,
-            prompt: l.floorPlanPrompt,
-          });
-        }
-      });
-    });
-
-    const results = await generateImagesParallel(imageReqs);
-    imageReqs.forEach((req, i) => {
-      const r = results[i];
-      if (!r?.url) return;
-      const sample = normalized.find((s) => s.id === req.sampleId);
-      if (!sample) return;
-      if (req.role === "level") {
-        const idx = req.index ?? 0;
-        if (sample.levels[idx]) sample.levels[idx].floorPlanUrl = r.url;
-      } else {
-        sample.renders ??= {};
-        if (req.role === "exterior") sample.renders.exteriorUrl = r.url;
-        else if (req.role === "interior") sample.renders.interiorUrl = r.url;
-        else if (req.role === "axonometric") sample.renders.axonometricUrl = r.url;
-        else if (req.role === "sketch") sample.renders.sketchUrl = r.url;
-      }
-    });
+  if (geminiAvailable() && normalized.length > 0) {
+    await runImagePipeline(sub, normalized);
+  } else if (!geminiAvailable()) {
+    console.warn("[arch-agency] GEMINI_API_KEY not set — skipping image generation");
   }
 
   return normalized;
+}
+
+async function runImagePipeline(sub: Submission, samples: Sample[]): Promise<void> {
+  const reqs: ImageRequest[] = [];
+  for (const s of samples) {
+    const styleHint = STYLE_HINTS[s.style];
+    const matCallouts = s.facade.materialCallouts.slice(0, 3).join(", ");
+    const baseContext = `${styleHint}. Materials: ${matCallouts || s.facade.description}.`;
+
+    reqs.push({
+      submissionId: sub.id,
+      sampleId: s.id,
+      role: "exterior",
+      prompt: `Photorealistic architectural exterior render of a mixed-use commercial building, ${baseContext} ${s.levels.length}-storey volume. Camera at eye level, three-quarter view, golden hour, high detail, professional architectural photography, no people, no text, no watermark.`,
+    });
+
+    const groundLevel = sub.levels[0];
+    reqs.push({
+      submissionId: sub.id,
+      sampleId: s.id,
+      role: "interior",
+      prompt: `Photorealistic interior hero shot of the ${groundLevel?.businessPurpose ?? "ground floor"}, ${styleHint}. Wide-angle camera, soft natural lighting, designer furniture, ${matCallouts}. Magazine-quality interior photography, no people, no text.`,
+    });
+
+    reqs.push({
+      submissionId: sub.id,
+      sampleId: s.id,
+      role: "axonometric",
+      prompt: `Architectural isometric axonometric cutaway 3D view of a ${s.levels.length}-storey mixed-use building showing all levels stacked, ${styleHint}. Clean technical line drawing with light pastel material shading, 45-degree angle, white background, no people, no text. Each level labeled.`,
+    });
+
+    reqs.push({
+      submissionId: sub.id,
+      sampleId: s.id,
+      role: "sketch",
+      prompt: `Hand-drawn architectural sketch of the building facade in black ink and light watercolor wash, ${styleHint}. Loose confident linework, competition presentation board style, slight pencil construction lines, on cream paper. No text, no labels.`,
+    });
+
+    s.levels.forEach((lvl, i) => {
+      const briefLvl = sub.levels[i];
+      const purpose = briefLvl?.businessPurpose ?? "";
+      const zoning = lvl.zoning || briefLvl?.layoutNotes || "";
+      reqs.push({
+        submissionId: sub.id,
+        sampleId: s.id,
+        role: "level",
+        index: i,
+        prompt: `Top-down 2D architectural floor plan drawing of ${lvl.levelName}, function: ${purpose}. Layout: ${zoning}. Show double-line walls, door swings as quarter arcs, windows as parallel lines, dimension lines with measurements in meters, room labels, furniture icons (sofas, tables, beds, chairs as appropriate). Black ink linework on white grid paper, professional CAD drawing style, orthographic projection, no perspective, no color shading, no people, north arrow in corner.`,
+      });
+    });
+  }
+
+  console.log(`[arch-agency] Firing ${reqs.length} Gemini image requests`);
+  const results = await generateImagesParallel(reqs);
+
+  let succeeded = 0;
+  let failed = 0;
+  reqs.forEach((req, i) => {
+    const r = results[i];
+    if (!r?.url) {
+      failed++;
+      if (r?.error) console.error(`[arch-agency] Gemini ${req.role}${req.index ?? ""}: ${r.error}`);
+      return;
+    }
+    succeeded++;
+    const sample = samples.find((s) => s.id === req.sampleId);
+    if (!sample) return;
+    if (req.role === "level") {
+      const idx = req.index ?? 0;
+      const lvl: LevelDesign | undefined = sample.levels[idx];
+      if (lvl) lvl.floorPlanUrl = r.url;
+    } else {
+      sample.renders ??= {};
+      if (req.role === "exterior") sample.renders.exteriorUrl = r.url;
+      else if (req.role === "interior") sample.renders.interiorUrl = r.url;
+      else if (req.role === "axonometric") sample.renders.axonometricUrl = r.url;
+      else if (req.role === "sketch") sample.renders.sketchUrl = r.url;
+    }
+  });
+  console.log(`[arch-agency] Gemini results — ${succeeded} ok, ${failed} failed`);
 }
 
 function extractJson(text: string): { samples?: unknown[] } {

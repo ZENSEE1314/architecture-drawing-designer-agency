@@ -30,23 +30,36 @@ export type ImageResult = {
   error?: string;
 };
 
+const GEMINI_TIMEOUT_MS = 60_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`Gemini timeout after ${ms}ms`)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }).catch((e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 export async function generateImage(req: ImageRequest): Promise<ImageResult> {
   const index = req.index ?? 0;
   try {
-    const res = await client().models.generateContent({
-      model: MODEL,
-      contents: req.prompt,
-      config: { responseModalities: ["Image"] },
-    });
+    const res = await withTimeout(
+      client().models.generateContent({
+        model: MODEL,
+        contents: req.prompt,
+        config: { responseModalities: ["Image"] },
+      }),
+      GEMINI_TIMEOUT_MS,
+    );
 
     const parts = res.candidates?.[0]?.content?.parts ?? [];
     const imagePart = parts.find((p) => p.inlineData?.data);
     if (!imagePart?.inlineData?.data) {
-      return { role: req.role, index, url: null, error: "No image in Gemini response" };
+      const finishReason = res.candidates?.[0]?.finishReason;
+      return { role: req.role, index, url: null, error: `No image in Gemini response (finishReason=${finishReason ?? "?"})` };
     }
 
     const buf = Buffer.from(imagePart.inlineData.data, "base64");
-    const filename = `${req.sampleId}-${req.role}${index ? `-${index}` : ""}.png`;
+    const filename = `${req.sampleId}-${req.role}${req.role === "level" ? `-${index}` : ""}.png`;
     const dir = path.join(UPLOADS_DIR, req.submissionId);
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(path.join(dir, filename), buf);
