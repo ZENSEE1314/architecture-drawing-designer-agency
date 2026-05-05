@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-const MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
+const MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
 const UPLOADS_DIR = path.join(process.cwd(), "data", "uploads");
 
 export function geminiAvailable(): boolean {
